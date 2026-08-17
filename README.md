@@ -1,182 +1,261 @@
 # Telco Müşteri Kaybı (Churn) Tahmini
 
-Bir telekom şirketinin 7.043 müşterisi üzerinde churn tahmini: keşifsel analiz,
-Lojistik Regresyon ve Random Forest karşılaştırması, ve — projenin asıl bulgusu —
-**karar eşiğinin model seçiminden çok daha önemli olduğunun** gösterilmesi.
+Bu projede, bir telekom şirketine ait **7.043 müşteri** üzerinden müşteri kaybı (churn) tahmini gerçekleştirilmiştir.
 
-Türkiye Yapay Zekâ Akademisi Veri Bilimi Bootcamp bitirme projesi.
+Çalışmada keşifsel veri analizi, veri ön işleme, Lojistik Regresyon ve Random Forest modellerinin karşılaştırılması, model değerlendirme metrikleri, karar eşiği optimizasyonu ve operasyonel churn analizi ele alınmıştır.
 
-📄 **Medium yazısı:** [buraya linki ekleyin](#)
+Projenin temel bulgularından biri, yalnızca daha karmaşık bir model seçmenin değil, **doğru karar eşiğinin belirlenmesinin de churn tespit performansı üzerinde önemli bir etkiye sahip olduğudur.**
+
+Bu proje, **Türkiye Yapay Zeka Akademisi** ve **HUAWEI Student Developers (HSD) Türkiye** iş birliğiyle düzenlenen **Veri Bilimi ve Makine Öğrenmesi Bootcamp** kapsamında hazırlanmıştır.
+
+## Medium Yazısı
+
+📄 **[Churn Tahmininde En Zor Kısım Model Değil](https://medium.com/@afaruktahsin/churn-tahmininde-en-zor-kısım-model-değil-1dea9df00b50)**
 
 ---
 
-## Özet bulgu
+## Proje Özeti
 
-| | ROC-AUC | Test setinde kaçan müşteri |
-|---|---|---|
+- **Problem:** Müşteri kaybı (Customer Churn) tahmini
+- **Veri seti:** IBM Telco Customer Churn
+- **Gözlem sayısı:** 7.043 müşteri
+- **Değişken sayısı:** 21
+- **Churn oranı:** %26,5
+- **Modeller:** Logistic Regression, Random Forest
+- **Ana değerlendirme metriği:** ROC-AUC
+- **En yüksek test ROC-AUC:** 0.8455
+- **Optimize edilen karar eşiği:** 0.23
+- **Araçlar:** Python, pandas, scikit-learn, matplotlib
+
+---
+
+## Özet Bulgular
+
+| Model | ROC-AUC | Test Setinde Kaçan Churn |
+|---|---:|---:|
 | Lojistik Regresyon (dengeli) | 0.8417 | 81 |
 | Random Forest (ayarlı) | **0.8455** | 82 |
-| **Random Forest, eşik 0.50 → 0.23** | 0.8455 | **19** |
+| **Random Forest — eşik 0.50 → 0.23** | 0.8455 | **19** |
 
-İki model arasındaki fark **0,004 AUC** — çapraz doğrulama standart sapmasının
-(0,010) yarısından az, yani ölçüm gürültüsü. Aynı modelin karar eşiğini
-varsayılan 0.50'den maliyet-optimal 0.23'e çekmek ise **63 müşteriyi kurtarıyor**
-ve varsayılan maliyet modeline göre **21.939 $** tasarruf sağlıyor.
+Lojistik Regresyon ile Random Forest arasındaki ROC-AUC farkı yalnızca **0,004** seviyesindedir.
 
----
+Buna karşılık aynı Random Forest modelinde karar eşiğinin varsayılan **0.50** seviyesinden maliyet odaklı **0.23** seviyesine düşürülmesi sonucunda **63 ek churn vakası tespit edilmiştir**.
 
-## Veri seti
+Kullanılan örnek maliyet modeline göre bu yaklaşım yaklaşık **21.939 $** daha düşük tahmini maliyet üretmiştir.
 
-[IBM Telco Customer Churn](https://github.com/IBM/telco-customer-churn-on-icp4d) —
-7.043 müşteri, 21 değişken, %26,5 churn oranı.
-
-Veri hazırlığında dikkat çeken nokta: `TotalCharges` sütununda 11 boş değer var
-ve **hepsinin `tenure` değeri 0** — yani henüz ilk faturası kesilmemiş yeni
-müşteriler. Rastgele bir eksiklik değil, verinin anlattığı bir durum; silmek
-yerine 0 atandı.
+> **Not:** Maliyet değerleri gerçek bir telekom şirketine ait finansal veriler değildir. Bu proje kapsamında karar eşiğinin iş maliyetlerine göre nasıl optimize edilebileceğini göstermek amacıyla kullanılan varsayımsal değerlerdir.
 
 ---
 
-## Bulgular
+## Veri Seti
 
-### Segment kırılımları
+Projede **IBM Telco Customer Churn** veri seti kullanılmıştır.
 
-![Sözleşme tipi ve müşteri yaşına göre churn](figures/g1_segmentler.png)
+🔗 [IBM Telco Customer Churn Dataset](https://github.com/IBM/telco-customer-churn-on-icp4d)
 
-Sözleşme tipi tek başına neredeyse her şeyi anlatıyor: aydan aya sözleşmelilerde
-churn **%42,7**, iki yıllıklarda **%2,8**. Risk ilk 6 ayda yoğunlaşıyor (%52,9),
-4 yılı devirenlerde %9,5'e iniyor.
+Veri setinde:
 
-![Gruplara göre churn oranı](figures/g2_kirilimlar.png)
+- 7.043 müşteri
+- 21 değişken
+- %26,5 churn oranı
 
-Fiber optik kullananlarda %41,9, elektronik çekle ödeyenlerde %45,3.
-Otomatik kredi kartı talimatı verenlerde ise sadece %15,2.
+bulunmaktadır.
 
-**Sinyal taşımayan değişken:** cinsiyet — kadınlarda %26,9, erkeklerde %26,2.
-7.000 kişilik örneklemde gürültüden ibaret.
+Veri hazırlama aşamasında `TotalCharges` değişkeninde **11 boş değer** tespit edilmiştir.
 
-### Model karşılaştırması
+Bu müşterilerin tamamının `tenure` değeri 0 olduğundan, söz konusu eksikliklerin yeni müşterilerin henüz ilk faturalarının oluşmamış olmasından kaynaklandığı değerlendirilmiştir.
 
-![Çapraz doğrulama sonuçları](figures/t1_cv.png)
-
-Taban çizgisi olarak konan kukla model (herkese "ayrılmaz" diyen) **%73,5
-doğrulukla** çalışıyor — dengesiz veride accuracy metriğinin neden yanıltıcı
-olduğunun somut kanıtı. Bu yüzden ana metrik ROC-AUC ve recall seçildi.
-
-`class_weight="balanced"` ROC-AUC'yi hiç değiştirmiyor (0.8462 → 0.8460) ama
-recall'ı 0.543'ten 0.802'ye çıkarıyor: sınıf ağırlıklandırması modelin sıralama
-yeteneğini değil, kesme noktasını değiştiriyor.
-
-![ROC eğrisi](figures/g3_roc.png)
-
-### Karar eşiği — projenin asıl konusu
-
-![Eşik ve maliyet](figures/g7_esik.png)
-
-Basit bir maliyet modeliyle (kaçan müşteri ≈ 893 $, gereksiz teklif ≈ 120 $)
-optimal eşik **0.23** çıkıyor.
-
-![İki eşikte karmaşıklık matrisi](figures/g4_matris.png)
-
-Eşik duyarlılığı da incelendi: maliyet oranı 1:2 alınırsa 524 müşteri, 1:20
-alınırsa 1.085 müşteri aranıyor. Yani "kaç kişiyi arayalım" sorusunun cevabı
-modelde değil, iş tarafının maliyet varsayımlarında.
-
-![Eşiğin maliyet varsayımına duyarlılığı](figures/t3_duyarlilik.png)
-
-### Operasyonel kullanım
-
-![Desil analizi](figures/g6_desil.png)
-
-En riskli %10'luk dilimde müşterilerin **%75,9'u** gerçekten ayrılmış (2,86 kat
-lift). En riskli %20'ye bakarak ayrılacakların %50,5'i, %30'a bakarak %66,6'sı
-yakalanıyor. Sınırlı bütçeli bir elde tutma ekibi için asıl kullanılabilir çıktı bu.
-
-### Yorumlanabilirlik
-
-![Permütasyon önemi](figures/g5_onem.png)
-![Lojistik regresyon katsayıları](figures/t4_katsayilar.png)
-
-İlginç bir ayrıntı: `MonthlyCharges` katsayısı **negatif** (odds oranı 0.574),
-oysa ham veride churn edenlerin ortalama aylık ücreti daha yüksek (74,44 $ vs
-61,27 $). Sebep çoklu doğrusal bağlantı — `InternetService_Fiber optic` değişkeni
-"yüksek ücret + yüksek risk" ilişkisini zaten üstlenmiş durumda. Geriye kalan
-etki, *aynı internet servisi içinde* daha çok ödeyen müşterinin daha bağlı
-olduğunu ölçüyor.
+Bu nedenle ilgili değerler silinmek yerine **0 ile doldurulmuştur**.
 
 ---
 
-## Çalıştırma
+# Keşifsel Veri Analizi
+
+## Segment Kırılımları
+
+<p align="center">
+  <img src="figures/g1_segmentler.png" alt="Sözleşme tipi ve müşteri yaşına göre churn" width="850">
+</p>
+
+Sözleşme türü churn davranışında önemli bir ayrım oluşturmaktadır.
+
+- Aydan aya sözleşmelilerde churn oranı: **%42,7**
+- İki yıllık sözleşmelilerde churn oranı: **%2,8**
+- İlk 6 aylık müşterilerde churn oranı: **%52,9**
+- 4 yılı aşan müşterilerde churn oranı: **%9,5**
+
+---
+
+<p align="center">
+  <img src="figures/g2_kirilimlar.png" alt="Gruplara göre churn oranı" width="850">
+</p>
+
+Bazı dikkat çekici segmentler:
+
+- Fiber optik kullanan müşteriler: **%41,9 churn**
+- Elektronik çek kullanan müşteriler: **%45,3 churn**
+- Otomatik kredi kartı ödemesi kullanan müşteriler: **%15,2 churn**
+
+Cinsiyet değişkeninde ise kadınlar ve erkekler arasında belirgin bir churn farkı görülmemiştir.
+
+- Kadınlar: **%26,9**
+- Erkekler: **%26,2**
+
+Bu nedenle cinsiyet değişkeninin churn açısından güçlü bir ayırt edici sinyal taşımadığı görülmüştür.
+
+---
+
+# Model Karşılaştırması
+
+<p align="center">
+  <img src="figures/t1_cv.png" alt="Çapraz doğrulama sonuçları" width="850">
+</p>
+
+Veri setinde churn sınıfı azınlıkta olduğu için yalnızca accuracy metriğine güvenmek yanıltıcı olabilir.
+
+Örneğin, tüm müşterileri "ayrılmaz" olarak tahmin eden basit bir model yaklaşık **%73,5 accuracy** elde edebilmektedir.
+
+Bu nedenle model değerlendirmesinde özellikle:
+
+- ROC-AUC
+- Recall
+- Precision
+- Confusion Matrix
+
+metrikleri dikkate alınmıştır.
+
+`class_weight="balanced"` kullanımı ROC-AUC değerini büyük ölçüde değiştirmemiş ancak churn sınıfı için recall değerini artırmıştır.
+
+---
+
+## ROC Eğrisi
+
+<p align="center">
+  <img src="figures/g3_roc.png" alt="ROC eğrisi" width="850">
+</p>
+
+Random Forest modeli test setinde **0.8455 ROC-AUC** değerine ulaşmıştır.
+
+Bu sonuç, modelin churn eden ve etmeyen müşterileri risk skoruna göre ayırmada güçlü bir performans gösterdiğini ortaya koymaktadır.
+
+---
+
+# Karar Eşiği Optimizasyonu
+
+Model çıktılarında varsayılan karar eşiği genellikle **0.50** olarak kullanılmaktadır.
+
+Ancak gerçek iş problemlerinde yanlış negatif ve yanlış pozitif tahminlerin maliyetleri eşit olmayabilir.
+
+Bu nedenle churn tahmininde yalnızca model performansı değil, **karar eşiğinin iş maliyetlerine göre ayarlanması** da incelenmiştir.
+
+<p align="center">
+  <img src="figures/g7_esik.png" alt="Karar eşiği ve maliyet analizi" width="850">
+</p>
+
+Kullanılan varsayımsal maliyet modelinde:
+
+- Kaçırılan churn müşterisi maliyeti: yaklaşık **893 $**
+- Gereksiz teklif maliyeti: yaklaşık **120 $**
+
+olarak ele alınmıştır.
+
+Bu varsayımlar altında maliyet açısından uygun karar eşiği yaklaşık **0.23** olarak bulunmuştur.
+
+---
+
+## Confusion Matrix Karşılaştırması
+
+<p align="center">
+  <img src="figures/g4_matris.png" alt="İki farklı eşikte confusion matrix" width="850">
+</p>
+
+Varsayılan 0.50 eşiğinde model daha az müşteriyi churn olarak işaretlerken, 0.23 eşiğinde daha fazla riskli müşteri tespit edilmektedir.
+
+Bu sayede kaçırılan churn vakası sayısı:
+
+**82 → 19**
+
+seviyesine düşmektedir.
+
+Bu durum karar eşiğinin modelin operasyonel kullanımında ne kadar önemli olabileceğini göstermektedir.
+
+---
+
+## Maliyet Varsayımı Duyarlılığı
+
+<p align="center">
+  <img src="figures/t3_duyarlilik.png" alt="Karar eşiğinin maliyet varsayımına duyarlılığı" width="850">
+</p>
+
+Maliyet oranı değiştikçe optimum karar eşiği ve temas kurulacak müşteri sayısı da değişmektedir.
+
+Örneğin:
+
+- Maliyet oranı 1:2 olduğunda yaklaşık **524 müşteri**
+- Maliyet oranı 1:20 olduğunda yaklaşık **1.085 müşteri**
+
+ile iletişime geçilmesi önerilmektedir.
+
+Bu nedenle "kaç müşteriye ulaşmalıyız?" sorusunun cevabı yalnızca makine öğrenmesi modelinden değil, aynı zamanda şirketin churn ve kampanya maliyetlerinden etkilenmektedir.
+
+---
+
+# Operasyonel Kullanım
+
+## Desil / Lift Analizi
+
+<p align="center">
+  <img src="figures/g6_desil.png" alt="Desil ve lift analizi" width="850">
+</p>
+
+Model tarafından en riskli olarak sıralanan müşteriler incelendiğinde:
+
+- En riskli **%10'luk** segmentte churn oranı: **%75,9**
+- Lift değeri: **2,86**
+- En riskli **%20** hedeflendiğinde toplam churn vakalarının yaklaşık **%50,5'i**
+- En riskli **%30** hedeflendiğinde yaklaşık **%66,6'sı**
+
+yakalanabilmektedir.
+
+Bu yaklaşım, sınırlı müşteri elde tutma bütçesine sahip ekiplerin en riskli müşterilere öncelik vermesine yardımcı olabilir.
+
+---
+
+# Model Yorumlanabilirliği
+
+## Permütasyon Önemi
+
+<p align="center">
+  <img src="figures/g5_onem.png" alt="Permütasyon önemi" width="850">
+</p>
+
+Permütasyon önemi analizi, model tahminlerinde hangi değişkenlerin daha fazla katkı sağladığını incelemek için kullanılmıştır.
+
+---
+
+## Lojistik Regresyon Katsayıları
+
+<p align="center">
+  <img src="figures/t4_katsayilar.png" alt="Lojistik regresyon katsayıları" width="850">
+</p>
+
+Dikkat çekici sonuçlardan biri `MonthlyCharges` değişkeninin model katsayısının negatif olmasıdır.
+
+Ham veride churn eden müşterilerin ortalama aylık ödemeleri daha yüksek olmasına rağmen, diğer değişkenler kontrol edildiğinde bu ilişkinin yönü değişebilmektedir.
+
+Bu durum özellikle:
+
+`InternetService_Fiber optic`
+
+gibi aylık ücretle ilişkili kategorik değişkenlerin modele aynı anda dahil edilmesiyle ortaya çıkan **çoklu değişken etkisinin** bir sonucudur.
+
+Bu nedenle lojistik regresyon katsayıları tek başına ham korelasyon gibi yorumlanmamalıdır.
+
+---
+
+# Çalıştırma
+
+Gerekli Python paketlerini yüklemek için:
 
 ```bash
 pip install -r requirements.txt
-
-python src/01_kesif.py        # keşifsel analiz, kırılımlar, eksik değerler
-python src/02_model.py        # modeller, çapraz doğrulama, eşik optimizasyonu
-python src/03_duyarlilik.py   # maliyet duyarlılığı + desil (lift) analizi
-python src/04_grafikler.py    # 7 grafik
-python src/05_dogrulama.py    # yazıdaki 61 sayıyı bağımsız olarak yeniden hesaplar
-python src/06_tablolar.py     # 4 tablo görseli
-python src/07_html_uret.py    # yazının HTML sürümü
-```
-
-Scriptler nereden çağrılırsa çağrılsın kendi kökünü bulur; `cd` gerekmez.
-
-### Doğrulama
-
-`05_dogrulama.py`, Medium yazısındaki **61 sayısal iddiayı** ham veriden ve
-kaydedilmiş model çıktılarından bağımsız olarak yeniden hesaplar. Çıktının son
-satırı şu olmalı:
-
-```
-TOPLAM: 61 | HATA: 0
-```
-
----
-
-## Klasör yapısı
-
-```
-├── data/        Telco-Customer-Churn.csv
-├── src/         7 analiz scripti
-├── figures/     7 grafik + 4 tablo görseli
-├── outputs/     model çıktıları (csv, json, npy)
-└── makale/      Medium yazısı (md + html) ve yayın notları
-```
-
----
-
-## Sınırlar
-
-Sonuçları okurken bilinmesi gerekenler:
-
-1. **Veri kesitsel** — tarih bilgisi yok. Model "bu müşteri ne zaman gidecek"i
-   değil, "ayrılmış müşterilere ne kadar benziyor"u cevaplıyor. Üretimde zamana
-   göre bölme (geçmiş ayla eğit, sonraki ayla test et) gerekirdi.
-2. **Korelasyon nedensellik değil** — iki yıllık sözleşmelilerin az ayrılması,
-   uzun sözleşmenin sadakat *yarattığını* göstermez; zaten sadık müşteriler uzun
-   sözleşme imzalıyor olabilir.
-3. **Maliyet varsayımları tahminî** — 893 $ ve 120 $ rakamları bu çalışmaya ait
-   varsayımlar. Duyarlılık analizi bu yüzden eklendi.
-4. **Tek bölme** — farklı bir `random_state` ile ROC-AUC ±0,01 oynayabilir.
-5. **Kalibrasyon kontrol edilmedi** — Random Forest olasılıkları genelde iyi
-   kalibre olmaz. Sıralama için sorun değil, ama olasılıkları doğrudan maliyet
-   hesabına sokmak isteseydik `CalibratedClassifierCV` gerekirdi.
-
-## Sonraki adımlar
-
-- Gradient boosting (XGBoost / LightGBM) karşılaştırması
-- SHAP ile müşteri bazında açıklama üretimi
-- Olasılık kalibrasyonu
-- Gerçek maliyet rakamlarının iş tarafından alınması
-
----
-
-## Ortam
-
-pandas 3.0.2 · scikit-learn 1.8.0 · matplotlib 3.10.9 · Python 3.11
-Tüm scriptlerde `random_state=42` sabit.
-
-## Lisans
-
-MIT — bkz. [LICENSE](LICENSE). Veri seti IBM'e aittir, kendi lisansına tabidir.
