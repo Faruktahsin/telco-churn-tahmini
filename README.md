@@ -52,6 +52,7 @@ Kullanılan örnek maliyet modeline göre bu yaklaşım yaklaşık **21.939 $** 
 Projede **IBM Telco Customer Churn** veri seti kullanılmıştır.
 
 🔗 [IBM Telco Customer Churn Dataset](https://github.com/IBM/telco-customer-churn-on-icp4d)
+
 Bu veri seti, müşteri kaybı (**customer churn**) tahmini problemlerini incelemek amacıyla yayımlanmış örnek bir veri setidir ve makine öğrenmesi uygulamalarında eğitim ve analiz amacıyla yaygın olarak kullanılmaktadır.
 
 Veri setinde:
@@ -77,6 +78,7 @@ Bu veri seti üzerinde:
 - karar eşiği optimizasyonu
 
 adımları uygulanmıştır.
+
 ---
 
 # Keşifsel Veri Analizi
