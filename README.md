@@ -239,7 +239,7 @@ Gerekli Python paketlerini yüklemek için:
 
 ```bash
 pip install -r requirements.txt
-
+```
 
 ## Kod Akışı
 
