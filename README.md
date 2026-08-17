@@ -239,3 +239,18 @@ Gerekli Python paketlerini yüklemek için:
 
 ```bash
 pip install -r requirements.txt
+
+
+## Kod Akışı
+
+Proje kodları aşağıdaki sırayla çalıştırılabilir:
+
+```text
+01_kesif.py          → Keşifsel veri analizi ve veri hazırlama
+02_model.py          → Lojistik Regresyon ve Random Forest modelleri
+03_duyarlilik.py     → Karar eşiği ve maliyet duyarlılık analizi
+04_grafikler.py      → Görselleştirmeler
+05_dogrulama.py      → Model doğrulama ve test sonuçları
+06_tablolar.py       → Sonuç tablolarının oluşturulması
+07_html_uret.py      → HTML rapor çıktısı üretimi
+```
