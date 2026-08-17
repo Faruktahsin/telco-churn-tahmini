@@ -1,0 +1,5 @@
+{
+  "mdl__max_depth": "10",
+  "mdl__min_samples_leaf": "15",
+  "mdl__n_estimators": "300"
+}
