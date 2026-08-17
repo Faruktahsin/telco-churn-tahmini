@@ -73,9 +73,7 @@ Bu nedenle ilgili değerler silinmek yerine **0 ile doldurulmuştur**.
 
 ## Segment Kırılımları
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g1_segmentler.png" alt="Sözleşme tipi ve müşteri yaşına göre churn" width="850">
-</p>
+![Sözleşme tipi ve müşteri yaşına göre churn](./figures/g1_segmentler.png)
 
 Sözleşme türü churn davranışında önemli bir ayrım oluşturmaktadır.
 
@@ -86,9 +84,7 @@ Sözleşme türü churn davranışında önemli bir ayrım oluşturmaktadır.
 
 ---
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g2_kirilimlar.png" alt="Gruplara göre churn oranı" width="850">
-</p>
+![Gruplara göre churn oranı](./figures/g2_kirilimlar.png)
 
 Bazı dikkat çekici segmentler:
 
@@ -107,9 +103,7 @@ Bu nedenle cinsiyet değişkeninin churn açısından güçlü bir ayırt edici 
 
 # Model Karşılaştırması
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/t1_cv.png" alt="Çapraz doğrulama sonuçları" width="850">
-</p>
+![Çapraz doğrulama sonuçları](./figures/t1_cv.png)
 
 Veri setinde churn sınıfı azınlıkta olduğu için yalnızca accuracy metriğine güvenmek yanıltıcı olabilir.
 
@@ -130,9 +124,7 @@ metrikleri dikkate alınmıştır.
 
 ## ROC Eğrisi
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g3_roc.png" alt="ROC eğrisi" width="850">
-</p>
+![ROC eğrisi](./figures/g3_roc.png)
 
 Random Forest modeli test setinde **0.8455 ROC-AUC** değerine ulaşmıştır.
 
@@ -148,9 +140,7 @@ Ancak gerçek iş problemlerinde yanlış negatif ve yanlış pozitif tahminleri
 
 Bu nedenle churn tahmininde yalnızca model performansı değil, **karar eşiğinin iş maliyetlerine göre ayarlanması** da incelenmiştir.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g7_esik.png" alt="Karar eşiği ve maliyet analizi" width="850">
-</p>
+![Karar eşiği ve maliyet analizi](./figures/g7_esik.png)
 
 Kullanılan varsayımsal maliyet modelinde:
 
@@ -165,9 +155,7 @@ Bu varsayımlar altında maliyet açısından uygun karar eşiği yaklaşık **0
 
 ## Confusion Matrix Karşılaştırması
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g4_matris.png" alt="İki farklı eşikte confusion matrix" width="850">
-</p>
+![İki farklı eşikte confusion matrix](./figures/g4_matris.png)
 
 Varsayılan 0.50 eşiğinde model daha az müşteriyi churn olarak işaretlerken, 0.23 eşiğinde daha fazla riskli müşteri tespit edilmektedir.
 
@@ -183,9 +171,7 @@ Bu durum karar eşiğinin modelin operasyonel kullanımında ne kadar önemli ol
 
 ## Maliyet Varsayımı Duyarlılığı
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/t3_duyarlilik.png" alt="Karar eşiğinin maliyet varsayımına duyarlılığı" width="850">
-</p>
+![Karar eşiğinin maliyet varsayımına duyarlılığı](./figures/t3_duyarlilik.png)
 
 Maliyet oranı değiştikçe optimum karar eşiği ve temas kurulacak müşteri sayısı da değişmektedir.
 
@@ -204,9 +190,7 @@ Bu nedenle "kaç müşteriye ulaşmalıyız?" sorusunun cevabı yalnızca makine
 
 ## Desil / Lift Analizi
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g6_desil.png" alt="Desil ve lift analizi" width="850">
-</p>
+![Desil ve lift analizi](./figures/g6_desil.png)
 
 Model tarafından en riskli olarak sıralanan müşteriler incelendiğinde:
 
@@ -225,9 +209,7 @@ Bu yaklaşım, sınırlı müşteri elde tutma bütçesine sahip ekiplerin en ri
 
 ## Permütasyon Önemi
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/g5_onem.png" alt="Permütasyon önemi" width="850">
-</p>
+![Permütasyon önemi](./figures/g5_onem.png)
 
 Permütasyon önemi analizi, model tahminlerinde hangi değişkenlerin daha fazla katkı sağladığını incelemek için kullanılmıştır.
 
@@ -235,9 +217,7 @@ Permütasyon önemi analizi, model tahminlerinde hangi değişkenlerin daha fazl
 
 ## Lojistik Regresyon Katsayıları
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Faruktahsin/telco-churn-tahmini/main/figures/t4_katsayilar.png" alt="Lojistik regresyon katsayıları" width="850">
-</p>
+![Lojistik regresyon katsayıları](./figures/t4_katsayilar.png)
 
 Dikkat çekici sonuçlardan biri `MonthlyCharges` değişkeninin model katsayısının negatif olmasıdır.
 
