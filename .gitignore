@@ -7,3 +7,6 @@ env/
 .DS_Store
 .idea/
 .vscode/
+
+# 07_html_uret.py çıktısı (yeniden üretilebilir)
+makale/medium_kopyala.html

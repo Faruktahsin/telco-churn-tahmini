@@ -51,26 +51,56 @@ esit("test seti n", 1409, len(y), 0)
 esit("eğitim seti n", 5634, 7043 - len(y), 0)
 esit("kukla accuracy", 0.7346, 1 - y.mean(), 0.001)
 esit("LR test ROC-AUC", 0.8417, roc_auc_score(y, p_lr), 0.0005)
-esit("RF test ROC-AUC", 0.8455, roc_auc_score(y, p_rf), 0.0005)
-esit("RF test PR-AUC", 0.6580, average_precision_score(y, p_rf), 0.0005)
+esit("RF test ROC-AUC", 0.8457, roc_auc_score(y, p_rf), 0.0005)
+esit("RF test PR-AUC", 0.6598, average_precision_score(y, p_rf), 0.0005)
 esit("LR test PR-AUC", 0.6331, average_precision_score(y, p_lr), 0.0005)
-esit("AUC farkı", 0.0038, roc_auc_score(y, p_rf) - roc_auc_score(y, p_lr), 0.0005)
+esit("AUC farkı", 0.0040, roc_auc_score(y, p_rf) - roc_auc_score(y, p_lr), 0.0005)
 
 tn, fp, fn, tp = confusion_matrix(y, (p_rf >= 0.50).astype(int)).ravel()
-esit("RF@0.50 kaçan", 82, fn, 0)
-esit("RF@0.50 recall", 0.781, tp / (tp + fn), 0.001)
-esit("RF@0.50 precision", 0.529, tp / (tp + fp), 0.001)
+esit("RF@0.50 kaçan", 80, fn, 0)
+esit("RF@0.50 recall", 0.786, tp / (tp + fn), 0.001)
+esit("RF@0.50 precision", 0.532, tp / (tp + fp), 0.001)
 m50 = fn * 893 + fp * 120
-esit("RF@0.50 maliyet", 104426, m50, 1)
+esit("RF@0.50 maliyet", 102520, m50, 1)
 
-tn, fp, fn, tp = confusion_matrix(y, (p_rf >= 0.23).astype(int)).ravel()
-esit("RF@0.23 kaçan", 19, fn, 0)
-esit("RF@0.23 recall", 0.949, tp / (tp + fn), 0.001)
-esit("RF@0.23 precision", 0.394, tp / (tp + fp), 0.001)
-m23 = fn * 893 + fp * 120
-esit("RF@0.23 maliyet", 82487, m23, 1)
-esit("tasarruf", 21939, m50 - m23, 1)
-esit("kurtarılan müşteri", 63, 82 - 19, 0)
+# Eşik test setinde DEĞİL, eğitim setinin out-of-fold olasılıklarında seçilmiş olmalı.
+import json
+with open("outputs/secilen_esik.json", encoding="utf-8") as _f:
+    _sec = json.load(_f)
+esik_rf = _sec["esikler"]["Random Forest (ayarlı)"]
+esik_lr = _sec["esikler"]["Lojistik Regresyon (dengeli)"]
+y_egitim = np.load("outputs/y_egitim.npy")
+_esikler = np.linspace(0.05, 0.95, 91)
+
+
+def _egitimde_secilen(oof):
+    m = []
+    for e in _esikler:
+        a, b_, c, d_ = confusion_matrix(y_egitim, (oof >= e).astype(int)).ravel()
+        m.append(c * 893 + b_ * 120)
+    return round(float(_esikler[int(np.argmin(m))]), 2)
+
+
+esit("RF eşiği eğitim CV'sinden", esik_rf, _egitimde_secilen(np.load("outputs/oof_rf.npy")), 0)
+esit("LR eşiği eğitim CV'sinden", esik_lr, _egitimde_secilen(np.load("outputs/oof_lr.npy")), 0)
+esit("RF seçilen eşik", 0.33, esik_rf, 0)
+esit("LR seçilen eşik", 0.32, esik_lr, 0)
+
+tn, fp, fn, tp = confusion_matrix(y, (p_rf >= esik_rf).astype(int)).ravel()
+esit("RF@eşik kaçan", 40, fn, 0)
+esit("RF@eşik recall", 0.893, tp / (tp + fn), 0.001)
+esit("RF@eşik precision", 0.441, tp / (tp + fp), 0.001)
+m_esik = fn * 893 + fp * 120
+esit("RF@eşik maliyet", 86480, m_esik, 1)
+esit("tasarruf", 16040, m50 - m_esik, 1)
+esit("kurtarılan müşteri", 40, 80 - 40, 0)
+
+tn, fp, fn, tp = confusion_matrix(y, (p_lr >= esik_lr).astype(int)).ravel()
+esit("LR@eşik kaçan", 30, fn, 0)
+esit("LR@eşik maliyet", 80070, fn * 893 + fp * 120, 1)
+tn, fp, fn, tp = confusion_matrix(y, (p_lr >= 0.50).astype(int)).ravel()
+esit("LR@0.50 kaçan", 81, fn, 0)
+esit("LR@0.50 maliyet", 106773, fn * 893 + fp * 120, 1)
 
 tn, fp, fn, tp = confusion_matrix(y, (p_lr >= 0.50).astype(int)).ravel()
 esit("LR@0.50 recall", 0.783, tp / (tp + fn), 0.001)
@@ -96,7 +126,7 @@ esit("MonthlyCharges odds", 0.574, k.loc["say__MonthlyCharges", "odds_orani"], 0
 
 pi = pd.read_csv("outputs/permutasyon_onem.csv").set_index("degisken")
 esit("tenure permütasyon", 0.041, pi.loc["tenure", "onem"], 0.0006)
-esit("Contract permütasyon", 0.036, pi.loc["Contract", "onem"], 0.0006)
+esit("Contract permütasyon", 0.035, pi.loc["Contract", "onem"], 0.0006)
 esit("ilk4 dışı toplam", 0.010, pi.onem.iloc[4:].sum(), 0.010)
 
 cvd = pd.read_csv("outputs/cv_sonuclari.csv").set_index("model")

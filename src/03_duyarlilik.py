@@ -12,25 +12,29 @@ from sklearn.metrics import confusion_matrix
 y = np.load("outputs/y_test.npy")
 p_lr = np.load("outputs/olasilik_lr.npy")
 p_rf = np.load("outputs/olasilik_rf.npy")
+y_egitim = np.load("outputs/y_egitim.npy")
+oof_rf = np.load("outputs/oof_rf.npy")
 
 print("=========== MALİYET ORANINA GÖRE EN İYİ EŞİK (Random Forest) ===========")
-print("Oran = kaçırılan churn maliyeti / gereksiz teklif maliyeti\n")
+print("Oran = kaçırılan churn maliyeti / gereksiz teklif maliyeti")
+print("Eşik eğitim setinin out-of-fold olasılıklarında seçilir, test setinde ölçülür.\n")
 esikler = np.linspace(0.05, 0.95, 91)
 satirlar = []
 for oran in [2, 3, 5, 7.4, 10, 15, 20]:
     KAYIP, TEKLIF = oran, 1.0
     m = []
     for e in esikler:
-        tn, fp, fn, tp = confusion_matrix(y, (p_rf >= e).astype(int)).ravel()
+        tn, fp, fn, tp = confusion_matrix(y_egitim, (oof_rf >= e).astype(int)).ravel()
         m.append(fn * KAYIP + fp * TEKLIF)
-    m = np.array(m)
-    e_iyi = esikler[m.argmin()]
+    e_iyi = esikler[int(np.argmin(m))]
     tn, fp, fn, tp = confusion_matrix(y, (p_rf >= e_iyi).astype(int)).ravel()
-    satirlar.append({"maliyet_orani": f"1:{oran:g}", "en_iyi_esik": round(e_iyi, 2),
+    satirlar.append({"maliyet_orani": oran, "en_iyi_esik": round(float(e_iyi), 2),
                      "recall": round(tp / (tp + fn), 3),
                      "precision": round(tp / (tp + fp), 3),
-                     "temas_edilen_musteri": tp + fp})
-print(pd.DataFrame(satirlar).to_string(index=False))
+                     "temas_edilen_musteri": int(tp + fp)})
+duyarlilik = pd.DataFrame(satirlar)
+print(duyarlilik.to_string(index=False))
+duyarlilik.to_csv("outputs/esik_duyarlilik.csv", index=False)
 
 print("\n=========== DESİL ANALİZİ (Random Forest, test seti) ===========")
 d = pd.DataFrame({"y": y, "p": p_rf})

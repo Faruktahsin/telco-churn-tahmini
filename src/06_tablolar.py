@@ -5,9 +5,14 @@ _os.chdir(KOK)
 for _d in ("outputs", "figures"):
     (KOK / _d).mkdir(exist_ok=True)
 
+import json
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from sklearn.metrics import average_precision_score, confusion_matrix, roc_auc_score
 
 YUZEY, MURK, IKINCIL, SOLUK = "#fcfcfb", "#0b0b0b", "#52514e", "#898781"
 IZGARA, S1, KRITIK = "#e1e0d9", "#2a78d6", "#d03b3b"
@@ -67,42 +72,81 @@ def tablo(dosya, baslik, basliklar, satirlar, vurgulu=None, genislik=None,
     plt.close(fig)
 
 
+# ---------------------------------------------------------------- veriler
+# Tablolardaki sayılar elle yazılmaz; 02 ve 03 adımlarının çıktılarından okunur.
+cvd = pd.read_csv("outputs/cv_sonuclari.csv").set_index("model")
+y_te = np.load("outputs/y_test.npy")
+p_lr = np.load("outputs/olasilik_lr.npy")
+p_rf = np.load("outputs/olasilik_rf.npy")
+duy = pd.read_csv("outputs/esik_duyarlilik.csv")
+with open("outputs/secilen_esik.json", encoding="utf-8") as f:
+    esik = json.load(f)["esikler"]
+
+
+def f3(v):
+    return f"{v:.3f}"
+
+
+def tr_sayi(n):
+    return f"{int(n):,}".replace(",", ".")
+
+
 # ---------------------------------------------------------------- T1
+cv_sira = [("Kukla (hep 'ayrılmaz')", "Kukla (hep “ayrılmaz”)"),
+           ("Lojistik Regresyon", "Lojistik Regresyon"),
+           ("Lojistik Regresyon (dengeli)", "Lojistik Regresyon (dengeli)"),
+           ("Random Forest", "Random Forest"),
+           ("Random Forest (dengeli)", "Random Forest (dengeli)")]
 tablo("figures/t1_cv.png",
       "5 katlı çapraz doğrulama sonuçları (eğitim seti)",
       ["Model", "ROC-AUC", "PR-AUC", "Recall", "Precision", "F1", "Accuracy"],
-      [["Kukla (hep “ayrılmaz”)", "0.500", "0.265", "0.000", "0.000", "0.000", "0.735"],
-       ["Lojistik Regresyon", "0.846", "0.662", "0.543", "0.654", "0.593", "0.802"],
-       ["Lojistik Regresyon (dengeli)", "0.846", "0.660", "0.802", "0.519", "0.630", "0.750"],
-       ["Random Forest", "0.826", "0.624", "0.484", "0.639", "0.550", "0.790"],
-       ["Random Forest (dengeli)", "0.845", "0.658", "0.726", "0.563", "0.634", "0.778"]],
+      [[etiket] + [f3(cvd.loc[ad, k]) for k in
+                   ["roc_auc", "average_precision", "recall", "precision", "f1", "accuracy"]]
+       for ad, etiket in cv_sira],
       vurgulu=[2],
       genislik=[3.3, 1.0, 1.0, 1.0, 1.05, 0.85, 1.05],
-      alt_not="Kukla model %73,5 doğrulukla çalışıyor — ve hiçbir şey öğrenmiyor.")
+      alt_not=(f"Kukla model %{cvd.loc[cv_sira[0][0], 'accuracy'] * 100:.1f}".replace(".", ",")
+               + " doğrulukla çalışıyor — ve hiçbir şey öğrenmiyor."))
+
 
 # ---------------------------------------------------------------- T2
+def test_satiri(ad, p, e):
+    tn, fp, fn, tp = confusion_matrix(y_te, (p >= 0.5).astype(int)).ravel()
+    tn2, fp2, fn2, tp2 = confusion_matrix(y_te, (p >= e).astype(int)).ravel()
+    return [ad, f"{roc_auc_score(y_te, p):.4f}", f"{average_precision_score(y_te, p):.4f}",
+            str(fn), f"{e:.2f}", str(fn2)]
+
+
+fark = roc_auc_score(y_te, p_rf) - roc_auc_score(y_te, p_lr)
 tablo("figures/t2_test.png",
-      "Test seti sonuçları (1.409 müşteri)",
-      ["Model", "ROC-AUC", "PR-AUC", "Recall (0.50)", "Precision (0.50)"],
-      [["Lojistik Regresyon (dengeli)", "0.8417", "0.6331", "0.783", "0.505"],
-       ["Random Forest (ayarlı)", "0.8455", "0.6580", "0.781", "0.529"]],
+      f"Test seti sonuçları ({tr_sayi(len(y_te))} müşteri)",
+      ["Model", "ROC-AUC", "PR-AUC", "Kaçan (0.50)", "Seçilen eşik", "Kaçan (eşikte)"],
+      [test_satiri("Lojistik Regresyon (dengeli)", p_lr, esik["Lojistik Regresyon (dengeli)"]),
+       test_satiri("Random Forest (ayarlı)", p_rf, esik["Random Forest (ayarlı)"])],
       vurgulu=[1],
-      genislik=[3.3, 1.15, 1.1, 1.4, 1.5],
-      alt_not="Aradaki fark 0,004 — çapraz doğrulama standart sapmasının yarısından az.")
+      genislik=[3.3, 1.1, 1.05, 1.3, 1.3, 1.4],
+      alt_not=(f"AUC farkı {fark:.3f}".replace(".", ",")
+               + " — eşikler test setine bakılmadan, eğitim CV'sinde seçildi."))
 
 # ---------------------------------------------------------------- T3
+secilen_oran = 7.4
+t3 = []
+for _, r in duy.iterrows():
+    oran = f"1 : {r.maliyet_orani:g}".replace(".", ",")
+    if abs(r.maliyet_orani - secilen_oran) < 1e-9:
+        oran += "  ← seçtiğim"
+    t3.append([oran, f"{r.en_iyi_esik:.2f}", f3(r.recall), f3(r.precision),
+               str(int(r.temas_edilen_musteri))])
+vurgu_t3 = [i for i, r in enumerate(duy.itertuples()) if abs(r.maliyet_orani - secilen_oran) < 1e-9]
 tablo("figures/t3_duyarlilik.png",
       "Eşik, maliyet varsayımına ne kadar duyarlı?",
       ["FN / FP maliyet oranı", "En iyi eşik", "Recall", "Precision", "Aranacak müşteri"],
-      [["1 : 2", "0.53", "0.762", "0.544", "524"],
-       ["1 : 3", "0.46", "0.824", "0.518", "595"],
-       ["1 : 5", "0.34", "0.893", "0.448", "746"],
-       ["1 : 7,4  ← seçtiğim", "0.23", "0.949", "0.394", "901"],
-       ["1 : 10", "0.17", "0.979", "0.364", "1006"],
-       ["1 : 20", "0.12", "0.992", "0.342", "1085"]],
-      vurgulu=[3],
+      t3,
+      vurgulu=vurgu_t3,
       genislik=[2.6, 1.2, 1.0, 1.15, 1.6],
-      alt_not="Varsayımı 1:2 alsam 524 kişiyi ararım, 1:20 alsam 1.085 kişiyi.")
+      alt_not=(f"Eşik eğitim CV'sinde seçildi, test setinde ölçüldü. Varsayımı 1:2 alsam "
+               f"{tr_sayi(duy.iloc[0].temas_edilen_musteri)} kişiyi ararım, 1:20 alsam "
+               f"{tr_sayi(duy.iloc[-1].temas_edilen_musteri)} kişiyi."))
 
 # ---------------------------------------------------------------- T4
 tablo("figures/t4_katsayilar.png",
