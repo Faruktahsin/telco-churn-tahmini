@@ -23,25 +23,27 @@ Bu proje, **Türkiye Yapay Zeka Akademisi** ve **HUAWEI Student Developers (HSD)
 - **Churn oranı:** %26,5
 - **Modeller:** Logistic Regression, Random Forest
 - **Ana değerlendirme metriği:** ROC-AUC
-- **En yüksek test ROC-AUC:** 0.8455
-- **Optimize edilen karar eşiği:** 0.23
+- **En yüksek test ROC-AUC:** 0.8457
+- **Karar eşikleri:** 0.33 (Random Forest), 0.32 (Lojistik Regresyon) — test setine bakılmadan, eğitim setinde 5 katlı çapraz doğrulama ile seçildi
 - **Araçlar:** Python, pandas, scikit-learn, matplotlib
 
 ---
 
 ## Özet Bulgular
 
-| Model | ROC-AUC | Test Setinde Kaçan Churn |
-|---|---:|---:|
-| Lojistik Regresyon (dengeli) | 0.8417 | 81 |
-| Random Forest (ayarlı) | **0.8455** | 82 |
-| **Random Forest — eşik 0.50 → 0.23** | 0.8455 | **19** |
+| Model | ROC-AUC | Kaçan churn (eşik 0.50) | Seçilen eşik | Kaçan churn (seçilen eşikte) | Tahmini maliyet (seçilen eşikte) |
+|---|---:|---:|---:|---:|---:|
+| Lojistik Regresyon (dengeli) | 0.8417 | 81 | 0.32 | **30** | **80.070 $** |
+| Random Forest (ayarlı) | **0.8457** | 80 | 0.33 | 40 | 86.480 $ |
 
 Lojistik Regresyon ile Random Forest arasındaki ROC-AUC farkı yalnızca **0,004** seviyesindedir.
 
-Buna karşılık aynı Random Forest modelinde karar eşiğinin varsayılan **0.50** seviyesinden maliyet odaklı **0.23** seviyesine düşürülmesi sonucunda **63 ek churn vakası tespit edilmiştir**.
+Buna karşılık karar eşiğinin varsayılan **0.50** yerine maliyete göre seçilmesi, her iki modelde de kaçan churn vakası sayısını yaklaşık yarıya ya da daha azına indirmiştir:
 
-Kullanılan örnek maliyet modeline göre bu yaklaşım yaklaşık **21.939 $** daha düşük tahmini maliyet üretmiştir.
+- Random Forest: **80 → 40** kaçan müşteri, yaklaşık **16.040 $** daha düşük tahmini maliyet
+- Lojistik Regresyon: **81 → 30** kaçan müşteri, yaklaşık **26.703 $** daha düşük tahmini maliyet
+
+Eşik seçildikten sonra, ROC-AUC'si biraz daha düşük olan Lojistik Regresyon test setinde daha düşük maliyet üretmiştir. Bu da ana bulguyu güçlendirir: sonuç üzerindeki asıl etki model seçiminden değil, karar eşiğinden gelmektedir.
 
 > **Not:** Maliyet değerleri gerçek bir telekom şirketine ait finansal veriler değildir. Bu proje kapsamında karar eşiğinin iş maliyetlerine göre nasıl optimize edilebileceğini göstermek amacıyla kullanılan varsayımsal değerlerdir.
 
@@ -138,7 +140,7 @@ metrikleri dikkate alınmıştır.
 
 ![ROC eğrisi](./figures/g3_roc.png)
 
-Random Forest modeli test setinde **0.8455 ROC-AUC** değerine ulaşmıştır.
+Random Forest modeli test setinde **0.8457 ROC-AUC** değerine ulaşmıştır.
 
 Bu sonuç, modelin churn eden ve etmeyen müşterileri risk skoruna göre ayırmada güçlü bir performans gösterdiğini ortaya koymaktadır.
 
@@ -161,7 +163,11 @@ Kullanılan varsayımsal maliyet modelinde:
 
 olarak ele alınmıştır.
 
-Bu varsayımlar altında maliyet açısından uygun karar eşiği yaklaşık **0.23** olarak bulunmuştur.
+Eşik, **test setine hiç bakılmadan** seçilmiştir: eğitim setinde 5 katlı çapraz doğrulama ile her müşteri için, modelin o müşteriyi görmediği katta ürettiği (out-of-fold) olasılıklar hesaplanmış ve toplam maliyeti en düşük eşik bu olasılıklar üzerinde bulunmuştur. Test seti yalnızca seçilen eşiği bir kez değerlendirmek için kullanılmıştır.
+
+Bu varsayımlar altında Random Forest için maliyet açısından uygun karar eşiği **0.33** olarak bulunmuştur.
+
+> **Düzeltme notu:** Projenin ilk sürümünde eşik doğrudan test seti üzerinde aranmış (0.23) ve "82 → 19 kaçan müşteri", "21.939 $ tasarruf" sonuçları raporlanmıştı. Eşiği değerlendirildiği veride seçmek sonuçları iyimser gösterdiği için yöntem düzeltilmiş ve tüm sayılar yeniden hesaplanmıştır.
 
 ---
 
@@ -169,11 +175,11 @@ Bu varsayımlar altında maliyet açısından uygun karar eşiği yaklaşık **0
 
 ![İki farklı eşikte confusion matrix](./figures/g4_matris.png)
 
-Varsayılan 0.50 eşiğinde model daha az müşteriyi churn olarak işaretlerken, 0.23 eşiğinde daha fazla riskli müşteri tespit edilmektedir.
+Varsayılan 0.50 eşiğinde model daha az müşteriyi churn olarak işaretlerken, 0.33 eşiğinde daha fazla riskli müşteri tespit edilmektedir.
 
 Bu sayede kaçırılan churn vakası sayısı:
 
-**82 → 19**
+**80 → 40**
 
 seviyesine düşmektedir.
 
@@ -189,8 +195,8 @@ Maliyet oranı değiştikçe optimum karar eşiği ve temas kurulacak müşteri 
 
 Örneğin:
 
-- Maliyet oranı 1:2 olduğunda yaklaşık **524 müşteri**
-- Maliyet oranı 1:20 olduğunda yaklaşık **1.085 müşteri**
+- Maliyet oranı 1:2 olduğunda yaklaşık **448 müşteri**
+- Maliyet oranı 1:20 olduğunda yaklaşık **1.105 müşteri**
 
 ile iletişime geçilmesi önerilmektedir.
 
@@ -247,11 +253,13 @@ Bu nedenle lojistik regresyon katsayıları tek başına ham korelasyon gibi yor
 
 # Çalıştırma
 
-Gerekli Python paketlerini yüklemek için:
+Gerekli Python paketlerini yüklemek için (Python 3.11 ile test edilmiştir):
 
 ```bash
 pip install -r requirements.txt
 ```
+
+Paket sürümleri `requirements.txt` içinde sabitlenmiştir; farklı bir scikit-learn sürümü Random Forest sonuçlarını küçük miktarlarda değiştirebilir.
 
 ## Kod Akışı
 
@@ -262,7 +270,7 @@ Proje kodları aşağıdaki sırayla çalıştırılabilir:
 02_model.py          → Lojistik Regresyon ve Random Forest modelleri
 03_duyarlilik.py     → Karar eşiği ve maliyet duyarlılık analizi
 04_grafikler.py      → Görselleştirmeler
-05_dogrulama.py      → Model doğrulama ve test sonuçları
+05_dogrulama.py      → README ve makaledeki sayıları bağımsız olarak yeniden hesaplar (beklenen çıktı: HATA: 0)
 06_tablolar.py       → Sonuç tablolarının oluşturulması
 07_html_uret.py      → HTML rapor çıktısı üretimi
 ```

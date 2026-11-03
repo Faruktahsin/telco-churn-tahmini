@@ -16,7 +16,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (average_precision_score, classification_report,
                              confusion_matrix, precision_recall_curve,
                              roc_auc_score, roc_curve)
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate, train_test_split
+from sklearn.model_selection import (GridSearchCV, StratifiedKFold, cross_val_predict,
+                                     cross_validate, train_test_split)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
@@ -125,28 +126,47 @@ print("\n=========== EŞİK OPTİMİZASYONU (iş maliyeti) ===========")
 # Elde tutma teklifi maliyeti ≈ 120$ (2 ay %50 indirim ~ 74$ + operasyon)
 KAYIP = 893.0     # kaçırılan churn'ün maliyeti (FN)
 TEKLIF = 120.0    # gereksiz teklifin maliyeti (FP)
+ESIKLER = np.linspace(0.05, 0.95, 91)
 
+
+def maliyet(y_gercek, p, esik):
+    tn, fp, fn, tp = confusion_matrix(y_gercek, (p >= esik).astype(int)).ravel()
+    return fn * KAYIP + fp * TEKLIF
+
+
+# Eşik, test setine HİÇ bakmadan seçilir: eğitim setinde 5 katlı çapraz doğrulama ile
+# her müşteri için "görmediği katta" üretilmiş (out-of-fold) olasılıklar hesaplanır,
+# maliyeti en düşük eşik bu olasılıklar üzerinde bulunur. Test seti yalnızca seçilen
+# eşiği bir kez değerlendirmek için kullanılır.
+oof = {
+    "Lojistik Regresyon (dengeli)": cross_val_predict(
+        modeller["Lojistik Regresyon (dengeli)"], X_tr, y_tr, cv=cv,
+        method="predict_proba", n_jobs=-1)[:, 1],
+    "Random Forest (ayarlı)": cross_val_predict(
+        grid.best_estimator_, X_tr, y_tr, cv=cv, method="predict_proba", n_jobs=-1)[:, 1],
+}
+
+secilen_esik = {}
 for ad, p in sonuc.items():
-    esikler = np.linspace(0.05, 0.95, 91)
-    maliyetler = []
-    for e in esikler:
-        t = (p >= e).astype(int)
-        tn, fp, fn, tp = confusion_matrix(y_te, t).ravel()
-        maliyetler.append(fn * KAYIP + fp * TEKLIF)
-    maliyetler = np.array(maliyetler)
-    en_iyi = esikler[maliyetler.argmin()]
-    t = (p >= en_iyi).astype(int)
+    egitim_maliyet = np.array([maliyet(y_tr, oof[ad], e) for e in ESIKLER])
+    esik = float(round(ESIKLER[egitim_maliyet.argmin()], 2))
+    secilen_esik[ad] = esik
+    t = (p >= esik).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_te, t).ravel()
-    varsayilan = (p >= 0.5).astype(int)
-    tn0, fp0, fn0, tp0 = confusion_matrix(y_te, varsayilan).ravel()
+    tn0, fp0, fn0, tp0 = confusion_matrix(y_te, (p >= 0.5).astype(int)).ravel()
+    m_sec, m_50 = fn * KAYIP + fp * TEKLIF, fn0 * KAYIP + fp0 * TEKLIF
     print(f"\n### {ad}")
-    print(f"En iyi eşik: {en_iyi:.2f} | maliyet: {maliyetler.min():,.0f}$ "
-          f"(0.50 eşiğinde: {(fn0*KAYIP+fp0*TEKLIF):,.0f}$)")
+    print(f"Eğitim CV'sinden seçilen eşik: {esik:.2f}")
+    print(f"Test maliyeti: {m_sec:,.0f}$ (0.50 eşiğinde: {m_50:,.0f}$)")
     print(f"Bu eşikte  -> TP:{tp} FP:{fp} FN:{fn} TN:{tn} | "
           f"recall={tp/(tp+fn):.3f} precision={tp/(tp+fp):.3f}")
     print(f"0.50'de    -> TP:{tp0} FP:{fp0} FN:{fn0} TN:{tn0} | "
           f"recall={tp0/(tp0+fn0):.3f} precision={tp0/(tp0+fp0):.3f}")
-    print(f"Tasarruf: {(fn0*KAYIP+fp0*TEKLIF) - maliyetler.min():,.0f}$")
+    print(f"Tasarruf (test): {m_50 - m_sec:,.0f}$")
+    # Yalnızca karşılaştırma için: testte seçilseydi (iyimser, sızıntılı tahmin)
+    test_maliyet = np.array([maliyet(y_te, p, e) for e in ESIKLER])
+    print(f"[Kıyas] Testte seçilseydi eşik {ESIKLER[test_maliyet.argmin()]:.2f}, "
+          f"maliyet {test_maliyet.min():,.0f}$ — bu sayı raporlanmaz, iyimser yanlıdır.")
 
 # ---------------------------------------------------------------- yorumlanabilirlik
 print("\n=========== LOJİSTİK REGRESYON KATSAYILARI (odds oranı) ===========")
@@ -172,9 +192,16 @@ print(pidf.head(12).round(4).to_string(index=False))
 np.save("outputs/olasilik_lr.npy", sonuc["Lojistik Regresyon (dengeli)"])
 np.save("outputs/olasilik_rf.npy", sonuc["Random Forest (ayarlı)"])
 np.save("outputs/y_test.npy", y_te.values)
+np.save("outputs/y_egitim.npy", y_tr.values)
+np.save("outputs/oof_lr.npy", oof["Lojistik Regresyon (dengeli)"])
+np.save("outputs/oof_rf.npy", oof["Random Forest (ayarlı)"])
 kdf.to_csv("outputs/katsayilar.csv", index=False)
 pidf.to_csv("outputs/permutasyon_onem.csv", index=False)
 cv_df.to_csv("outputs/cv_sonuclari.csv")
+with open("outputs/secilen_esik.json", "w") as f:
+    json.dump({"maliyet_FN": KAYIP, "maliyet_FP": TEKLIF,
+               "secim_yontemi": "egitim seti 5 katli CV out-of-fold olasiliklari",
+               "esikler": secilen_esik}, f, indent=2, ensure_ascii=False)
 with open("outputs/en_iyi_parametreler.json", "w") as f:
     json.dump({k: str(v) for k, v in grid.best_params_.items()}, f, indent=2)
 print("\nÇıktılar kaydedildi.")

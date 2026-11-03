@@ -5,6 +5,8 @@ _os.chdir(KOK)
 for _d in ("outputs", "figures"):
     (KOK / _d).mkdir(exist_ok=True)
 
+import json
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -48,6 +50,10 @@ df["churn"] = (df["Churn"] == "Yes").astype(int)
 y_te = np.load("outputs/y_test.npy")
 p_lr = np.load("outputs/olasilik_lr.npy")
 p_rf = np.load("outputs/olasilik_rf.npy")
+y_egitim = np.load("outputs/y_egitim.npy")
+oof_rf = np.load("outputs/oof_rf.npy")
+with open("outputs/secilen_esik.json", encoding="utf-8") as _f:
+    ESIK_RF = json.load(_f)["esikler"]["Random Forest (ayarlı)"]
 
 # ================================================================ 1) sözleşme + tenure
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.6))
@@ -147,7 +153,7 @@ plt.close(fig)
 etiketler = [["Doğru: kalacak dedik", "Yanlış alarm"],
              ["KAÇAN müşteri", "Yakalanan"]]
 fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8))
-for ax, esik in zip(axes, [0.50, 0.23]):
+for ax, esik in zip(axes, [0.50, ESIK_RF]):
     cm = confusion_matrix(y_te, (p_rf >= esik).astype(int))
     ax.pcolormesh(np.arange(3), np.arange(3), cm, cmap="Blues",
                   vmin=0, vmax=cm.max() * 1.3, edgecolors=YUZEY, linewidth=3)
@@ -248,36 +254,41 @@ fig.savefig("figures/g6_desil.png")
 plt.close(fig)
 
 # ================================================================ 7) eşik-maliyet
+# Sol panel: eşiğin SEÇİLDİĞİ veri — eğitim setinin out-of-fold olasılıkları.
+# Sağ panel: seçilen eşiğin test setindeki recall/precision takası.
 KAYIP, TEKLIF = 893.0, 120.0
 esikler = np.linspace(0.05, 0.95, 91)
 maliyet, recall, precision = [], [], []
 for e in esikler:
+    tn, fp, fn, tp = confusion_matrix(y_egitim, (oof_rf >= e).astype(int)).ravel()
+    maliyet.append((fn * KAYIP + fp * TEKLIF) / len(y_egitim))
     tn, fp, fn, tp = confusion_matrix(y_te, (p_rf >= e).astype(int)).ravel()
-    maliyet.append(fn * KAYIP + fp * TEKLIF)
     recall.append(tp / (tp + fn))
     precision.append(tp / (tp + fp) if (tp + fp) else np.nan)
 maliyet = np.array(maliyet)
-en_iyi = esikler[maliyet.argmin()]
+en_iyi = ESIK_RF
+i_iyi = int(np.argmin(np.abs(esikler - en_iyi)))
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.6))
-ax1.plot(esikler, maliyet / 1000, color=S1, linewidth=2, zorder=3)
-ax1.scatter([en_iyi], [maliyet.min() / 1000], s=90, color=KRITIK,
+ax1.plot(esikler, maliyet, color=S1, linewidth=2, zorder=3)
+ax1.scatter([en_iyi], [maliyet[i_iyi]], s=90, color=KRITIK,
             edgecolor=YUZEY, linewidth=2, zorder=4)
-ax1.annotate(f"en iyi eşik {en_iyi:.2f}  ·  {maliyet.min()/1000:.0f}B $",
-             xy=(en_iyi, maliyet.min() / 1000), xytext=(0.30, 158),
+ust = float(np.nanmax(maliyet))
+ax1.annotate(f"en iyi eşik {en_iyi:.2f}  ·  {maliyet[i_iyi]:.0f} $/müşteri",
+             xy=(en_iyi, maliyet[i_iyi]), xytext=(0.30, maliyet[i_iyi] + 0.30 * ust),
              fontsize=10.5, fontweight="bold", color=MURK,
              arrowprops=dict(arrowstyle="->", color=IKINCIL, lw=1.2))
 i50 = np.argmin(np.abs(esikler - 0.50))
-ax1.scatter([0.50], [maliyet[i50] / 1000], s=70, color=SOLUK,
+ax1.scatter([0.50], [maliyet[i50]], s=70, color=SOLUK,
             edgecolor=YUZEY, linewidth=2, zorder=4)
-ax1.annotate(f"varsayılan 0.50  ·  {maliyet[i50]/1000:.0f}B $",
-             xy=(0.50, maliyet[i50] / 1000), xytext=(0.30, 258),
+ax1.annotate(f"varsayılan 0.50  ·  {maliyet[i50]:.0f} $/müşteri",
+             xy=(0.50, maliyet[i50]), xytext=(0.30, maliyet[i50] + 0.45 * ust),
              fontsize=10, color=IKINCIL,
              arrowprops=dict(arrowstyle="->", color=EKSEN, lw=1.1))
-ax1.set_ylim(60, 355)
+ax1.set_ylim(0, ust * 1.15)
 ax1.set_xlabel("Karar eşiği")
-ax1.set_ylabel("Toplam maliyet (bin $)")
-ax1.set_title("Varsayılan 0.50 en ucuz nokta değil",
+ax1.set_ylabel("Müşteri başına maliyet ($, eğitim CV)")
+ax1.set_title("0.50 en ucuz eşik değil (eğitim CV)",
               fontsize=12, fontweight="bold", color=MURK, pad=12, loc="left")
 ax1.grid(zorder=0)
 ax1.set_axisbelow(True)
@@ -287,13 +298,13 @@ ax2.plot(esikler, np.array(recall) * 100, color=S1, linewidth=2,
 ax2.plot(esikler, np.array(precision) * 100, color=S2, linewidth=2,
          label="Precision — aradıklarımızın kaçı gerçekten gidecekti", zorder=3)
 ax2.axvline(en_iyi, color=EKSEN, linewidth=1.4, linestyle="--", zorder=2)
-ax2.text(en_iyi + 0.025, 66, f"seçilen eşik {en_iyi:.2f}", fontsize=9.5, color=IKINCIL)
+ax2.text(en_iyi + 0.025, 101, f"seçilen eşik {en_iyi:.2f}", fontsize=9.5, color=IKINCIL)
 ax2.set_xlabel("Karar eşiği")
 ax2.set_ylabel("Oran")
 ax2.set_ylim(0, 108)
 ax2.yaxis.set_major_formatter(PercentFormatter())
 ax2.legend(loc="lower left", frameon=False, fontsize=9, bbox_to_anchor=(-0.02, -0.03))
-ax2.set_title("Her kazanç bir takasla geliyor",
+ax2.set_title("Test setinde: her kazanç bir takasla geliyor",
               fontsize=12, fontweight="bold", color=MURK, pad=12, loc="left")
 ax2.grid(zorder=0)
 ax2.set_axisbelow(True)

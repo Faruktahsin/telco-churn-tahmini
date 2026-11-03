@@ -1,0 +1,9 @@
+{
+  "maliyet_FN": 893.0,
+  "maliyet_FP": 120.0,
+  "secim_yontemi": "egitim seti 5 katli CV out-of-fold olasiliklari",
+  "esikler": {
+    "Lojistik Regresyon (dengeli)": 0.32,
+    "Random Forest (ayarlı)": 0.33
+  }
+}

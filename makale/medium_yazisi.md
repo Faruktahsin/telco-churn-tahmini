@@ -190,17 +190,21 @@ Basit bir maliyet modeli kurdum:
 
 Oran yaklaşık **1:7,4**. Sonra tüm eşikleri tarayıp toplam maliyeti hesapladım.
 
+Burada önemli bir ayrıntı var: eşiği **test setinde aramadım**. Test setinde en iyi eşiği seçip yine test setinde ölçmek, sonucu olduğundan iyi gösterir. Bunun yerine eğitim setinde 5 katlı çapraz doğrulama ile her müşteri için, modelin o müşteriyi görmediği katta ürettiği olasılıkları (`cross_val_predict`) hesapladım ve eşiği bu olasılıklar üzerinde seçtim. Test seti yalnızca son ölçüm için kullanıldı.
+
 ![Eşik seçimi ve maliyet](../figures/g7_esik.png)
 
-En düşük maliyet **0.23 eşiğinde**. Varsayılan 0.50'de test setinin toplam maliyeti 104.426 dolar; 0.23'te 82.487 dolar. **21.939 dolar fark** — sadece 1.409 kişilik bir test setinde, tek satır kod değiştirerek.
+Eğitim verisinde en düşük maliyet **0.33 eşiğinde**. Bu eşiği test setine uyguladığımda: varsayılan 0.50'de toplam maliyet 102.520 dolar; 0.33'te 86.480 dolar. **16.040 dolar fark** — sadece 1.409 kişilik bir test setinde, tek satır kod değiştirerek.
 
 Somut olarak ne değişti:
 
 ![İki farklı eşikte karmaşıklık matrisi](../figures/g4_matris.png)
 
-0.50'de 82 müşteri elimizden kaçıyordu. 0.23'te bu sayı **19'a** düşüyor. Recall 0.78'den 0.95'e çıkıyor.
+0.50'de 80 müşteri elimizden kaçıyordu. 0.33'te bu sayı **40'a** iniyor — yarı yarıya. Recall 0.79'dan 0.89'a çıkıyor.
 
-Bedeli var tabii: precision 0.53'ten 0.39'a iniyor. Yani aradığımız her 10 kişiden 6'sı zaten kalacaktı. Ama varsayımlarımıza göre bu bedel, kaçırdığımız 63 müşteriden ucuz.
+Bedeli var tabii: precision 0.53'ten 0.44'e iniyor. Yani aradığımız her 10 kişiden 5-6'sı zaten kalacaktı. Ama varsayımlarımıza göre bu bedel, kaçırdığımız 40 müşteriden ucuz.
+
+İlginç bir yan sonuç: aynı yöntemi lojistik regresyona uyguladığımda eşik 0.32 çıktı ve test setinde yalnızca **30** müşteri kaçtı (0.50'de 81). Toplam maliyet 80.070 dolarla Random Forest'tan bile düşük. Yani eşik ayarlandıktan sonra AUC'si biraz daha düşük olan model daha ucuza geldi.
 
 ### Ama bu varsayımlar ne kadar sağlam?
 
@@ -208,7 +212,7 @@ Burada kendimi biraz rahatsız hissettim, çünkü 893 ve 120 sayılarını ben 
 
 ![Eşiğin maliyet varsayımına duyarlılığı](../figures/t3_duyarlilik.png)
 
-Tablo bana şunu söyledi: eşik, maliyet varsayımına **çok** duyarlı. Oranı 1:2 alsam 524 kişiyi ararım, 1:20 alsam 1.085 kişiyi — neredeyse test setinin tamamını.
+Tablo bana şunu söyledi: eşik, maliyet varsayımına **çok** duyarlı. Oranı 1:2 alsam 448 kişiyi ararım, 1:20 alsam 1.105 kişiyi — neredeyse test setinin tamamını.
 
 Bu bir zayıflık değil, modelin doğru soruyu iş tarafına geri vermesi. "Kaç kişiyi arayalım?" sorusunun cevabı modelde değil; bir müşterinin kaybının şirkete gerçekte neye mal olduğunda.
 
@@ -278,7 +282,7 @@ Yazıyı bitirmeden önce, elimdeki sonucun ne olmadığını da yazmak istiyoru
 
 **4. Tek bir bölme.** Test sonuçları tek bir %20'lik ayırmadan geliyor. Farklı bir `random_state` ile ROC-AUC muhtemelen ±0,01 oynardı. Çapraz doğrulama standart sapmaları da bunu söylüyor.
 
-**5. Kalibrasyon kontrolü yapmadım.** "0,23 olasılık" gerçekten %23'lük bir risk mi, yoksa sadece bir sıralama skoru mu? Random Forest olasılıkları genelde iyi kalibre olmaz. Sıralama için sorun değil ama maliyet hesabını doğrudan olasılıklar üzerinden kurmak isteseydim `CalibratedClassifierCV` ile bakmam gerekirdi.
+**5. Kalibrasyon kontrolü yapmadım.** "0,33 olasılık" gerçekten %23'lük bir risk mi, yoksa sadece bir sıralama skoru mu? Random Forest olasılıkları genelde iyi kalibre olmaz. Sıralama için sorun değil ama maliyet hesabını doğrudan olasılıklar üzerinden kurmak isteseydim `CalibratedClassifierCV` ile bakmam gerekirdi.
 
 ---
 
@@ -295,7 +299,7 @@ Yazıyı bitirmeden önce, elimdeki sonucun ne olmadığını da yazmak istiyoru
 
 Bu projeye "hangi model daha iyi tahmin eder" sorusuyla başlamıştım. Bitirdiğimde elimde bambaşka bir cevap vardı.
 
-İki model arasındaki fark 0,004 AUC — ölçüm gürültüsü. Ama aynı modelin eşiğini 0.50'den 0.23'e çekmek, test setinde 63 müşteriyi kurtardı ve varsayımlarıma göre 22 bin dolar tasarruf ettirdi. **Model seçimi bana neredeyse hiçbir şey kazandırmadı; karar eşiği her şeyi kazandırdı.**
+İki model arasındaki fark 0,004 AUC — ölçüm gürültüsü. Ama aynı modelin eşiğini 0.50'den 0.33'e çekmek, test setinde kaçan müşteri sayısını yarıya indirdi (80 → 40) ve varsayımlarıma göre 16 bin dolar tasarruf ettirdi. **Model seçimi bana neredeyse hiçbir şey kazandırmadı; karar eşiği her şeyi kazandırdı.**
 
 Bootcamp boyunca `fit()` ve `predict()` arasındaki kısmı öğrendim. Bu projede asıl işin `predict()`'ten *sonra* başladığını öğrendim.
 
@@ -307,6 +311,6 @@ Aklımda kalan üç cümle:
 
 ---
 
-*Projenin kodları ve grafikleri GitHub'da: [repo linkinizi buraya ekleyin]*
+*Projenin kodları ve grafikleri GitHub'da: [github.com/Faruktahsin/telco-churn-tahmini](https://github.com/Faruktahsin/telco-churn-tahmini)*
 
 *Veri seti: IBM Telco Customer Churn — 7.043 müşteri, 21 değişken.*
